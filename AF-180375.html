@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var mamacoIsActived = false;
+        var impulserIsActived = false;
+        var positve = false;
+        var negative = false;
+        var heliceActived = false;
+        var firstDoorInit;
+        var charutoInit;
+        var impulserInit;
+        var mamacoInit;
+        var sphere;
+        var sphere2;
+        var sphere3;
+        var motor;
+        var camera;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+
+        var createScene = function() {
+            var scene = new BABYLON.Scene(engine);
+            scene.enablePhysics();
+
+            camera = new BABYLON.ArcRotateCamera("Camera", - Math.PI / 4, Math.PI / 4, 1, new BABYLON.Vector3(100,100,-50), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 10;
+            camera.upperRadiusLimit = 50;
+        	
+            var light1 = new BABYLON.DirectionalLight("DirectionalLight", new BABYLON.Vector3(0, 1, 0), scene);
+            var light2 = new BABYLON.HemisphericLight("HemiLight", new BABYLON.Vector3(0, 1, 0), scene);   
+            light1.intensity = 0.75;
+            light2.intensity = 0.5;
+
+            createSpheres(camera, scene);
+            createPath(scene);
+            createSkyBox(scene);
+            createInputMap(scene, camera);
+            criarHUD();
+            criarHUDInstrucoes();
+        	return scene;
+        };
+
+        function createSkyBox(scene){
+            var skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:600.0}, scene);
+            var skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+            skyboxMaterial.backFaceCulling = false;
+            var files = [
+                "texturas/Space/space_left.jpg",
+                "texturas/Space/space_up.jpg",
+                "texturas/Space/space_front.jpg",
+                "texturas/Space/space_right.jpg",
+                "texturas/Space/space_down.jpg",
+                "texturas/Space/space_back.jpg",
+            ];
+            skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture.CreateFromImages(files, scene);
+            skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+            skyboxMaterial.disableLighting = true;
+            skybox.material = skyboxMaterial;	
+        }
+
+        function createSpheres(camera, scene) {
+            sphere = BABYLON.Mesh.CreateSphere(`sphere`, 32, 1, scene);
+            sphere.physicsImpostor = new BABYLON.PhysicsImpostor(sphere, BABYLON.PhysicsImpostor.SphereImpostor, { mass:100, friction:.01, restitution:0 }, scene);
+            var sphereMat = new BABYLON.StandardMaterial("coreMat", scene)
+            sphereMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.4); 
+            sphereMat.specularColor = BABYLON.Color3.Black();
+            sphere.material = sphereMat;
+
+            sphere2 = BABYLON.Mesh.CreateSphere(`sphere2`, 32, 1, scene);
+            sphere2.physicsImpostor = new BABYLON.PhysicsImpostor(sphere2, BABYLON.PhysicsImpostor.SphereImpostor, { mass:100, friction:.001, restitution:0 }, scene);
+
+            sphere3 = BABYLON.Mesh.CreateSphere(`sphere3`, 32, 1, scene);
+            sphere3.physicsImpostor = new BABYLON.PhysicsImpostor(sphere3, BABYLON.PhysicsImpostor.SphereImpostor, { mass:5, friction:.01, restitution:0 }, scene);
+            var sphereMatRed = new BABYLON.StandardMaterial("coreMat2", scene)
+            sphereMatRed.diffuseColor = new BABYLON.Color3(0.4, 0.1, 0.1); 
+            sphereMatRed.specularColor = BABYLON.Color3.Black();
+            sphere3.material = sphereMatRed;
+
+
+            sphere.position.y = 80;
+            sphere.position.x = -5;
+            sphere.position.z = 0;
+            //sphere.position.z = -4.5; posicao done
+            sphere2.position.y = 80;
+            sphere2.position.x = -5;
+            sphere2.position.z = -4.5;
+
+            sphere3.position.y = -35;
+            sphere3.position.x = 109; // 108
+            sphere3.position.z = 0;
+
+            camera.target = sphere2;
+            const bounce = new BABYLON.Sound("bounce", "./sounds/deja-vu.mp3", scene, null, { loop: false, autoplay: true, volume: 0.15 });            
+        }
+
+        function createPath(scene) {
+            var path = BABYLON.SceneLoader.ImportMesh("", "assets/", "scena.babylon", scene, function (newMeshes, particleSystems, skeletons, animationGroups){
+                //console.log(newMeshes);
+                newMeshes.forEach(mesh => {
+                  //domino
+                  if(mesh.name.includes("domino")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass:0.4, friction:1}, scene);
+                  }
+                  //chao do domino
+                  else if(mesh.name.includes("groundDomino")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass:0, friction:1}, scene);
+                  }
+                  else if(mesh.name.includes("fristDoor")){
+                    firstDoorInit = mesh.position.z;
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+                  }
+                  else if(mesh.name.includes("mamacoObj")){
+                    mamacoInit = mesh.position.z;
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+                  }
+                  else if(mesh.name.includes("impulser")){
+                    impulserInit = mesh.position.x;
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass:500, friction:25}, scene);
+                    scene.registerBeforeRender( () => {
+                        let sphere = scene.getMeshById("sphere");
+                        if(sphere && !impulserIsActived) {
+                            if(mesh.intersectsMesh(sphere, true)) {
+                                console.log("Olha o impulser");
+                                const bounce = new BABYLON.Sound("bounce", "./sounds/piston2.mp3", scene, null, { loop: false, autoplay: true, volume: 0.4 });
+                                createParticleSphere(scene,sphere);
+                                impulserIsActived = true;
+                            }
+                        }
+                    } )
+                  }
+                  else if(mesh.name.includes("charuto")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass:0, friction:1, restitution: 50}, scene);
+                    charutoInit = mesh.position.x;
+                  }
+                  else if(mesh.name.includes("heliceFinal")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+                    console.log(`entrou na helice - Valor: ${mesh.position}`);
+                    motor = mesh.position;
+                  }
+                  else if(mesh.name.includes("helice")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+                  }
+                  else if(mesh.name.includes("groundMat")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+                    var groundMaterial = new BABYLON.PBRMetallicRoughnessMaterial("groundMat", scene);
+                    groundMaterial.baseTexture = new BABYLON.Texture("https://raw.githubusercontent.com/PatrickRyanMS/BabylonJStextures/master/ParticleSystems/Explosion/Ground/rockyGround_basecolor.png", scene);
+                    groundMaterial.normalTexture = new BABYLON.Texture("https://raw.githubusercontent.com/PatrickRyanMS/BabylonJStextures/master/ParticleSystems/Explosion/Ground/rockyGround_normal.png", scene);
+                    groundMaterial.metallicRoughnessTexture = new BABYLON.Texture("https://raw.githubusercontent.com/PatrickRyanMS/BabylonJStextures/master/ParticleSystems/Explosion/Ground/rockyGround_metalRough.png", scene);
+                    groundMaterial.baseTexture.uScale = 40.0;
+                    groundMaterial.baseTexture.vScale = 40.0;  
+                    groundMaterial.normalTexture.uScale = 40.0;
+                    groundMaterial.normalTexture.vScale = 40.0; 
+                    groundMaterial.metallicRoughnessTexture.uScale = 40.0;
+                    groundMaterial.metallicRoughnessTexture.vScale = 40.0;  
+                    mesh.material = groundMaterial;
+                    mesh.material.backFaceCulling = false;
+                  }
+                  else if(mesh.name.includes("positve")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+
+                    scene.registerBeforeRender( () => {
+                        let sphere3 = scene.getMeshById("sphere3");
+                        if(sphere3 && !positve) {
+                            if(mesh.intersectsMesh(sphere3, true)) {
+                                const bounce = new BABYLON.Sound("bounce", "./sounds/shock.mp3", scene, null, { loop: false, autoplay: true });
+                                positve = true;
+                            }
+                        }
+                    })
+                  }
+                  else if(mesh.name.includes("negative")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+
+                    scene.registerBeforeRender( () => {
+                        let sphere = scene.getMeshById("sphere");
+                        if(sphere && !negative) {
+                            if(mesh.intersectsMesh(sphere, true)) {
+                                const bounce = new BABYLON.Sound("bounce", "./sounds/shock.mp3", scene, null, { loop: false, autoplay: true });
+                                negative = true;
+                            }
+                        }
+                    })
+                  }
+                  else if(mesh.name.includes("Suzanne")){
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+                    scene.registerBeforeRender( () => {
+                        let sphere2 = scene.getMeshById("sphere2");
+                        if(sphere2 && !mamacoIsActived) {
+                            if(mesh.intersectsMesh(sphere2, true)) {
+                                console.log("Olha o macaco");
+                                createParticleSphere(scene,sphere3);
+                                mamacoIsActived = true;
+                            }
+                        }
+                    } )
+                  }
+                  else {
+                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass:0, friction:1}, scene);
+                  }
+                })
+            });
+            const bounce = new BABYLON.Sound("bounce", "./sounds/fundo.mp3", scene, null, { loop: false, autoplay: true, volume: 0.2 });       
+        }
+
+        function createInputMap(scene, camera){
+            // Keyboard events
+            var inputMap = {};
+           scene.actionManager = new BABYLON.ActionManager(scene);
+           scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, function (evt) {
+               inputMap[evt.sourceEvent.key] = evt.sourceEvent.type == "keydown";
+           }));
+           scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, function (evt) {
+               inputMap[evt.sourceEvent.key] = evt.sourceEvent.type == "keydown";
+           }));
+            scene.onBeforeRenderObservable.add(() => {
+                if ( (inputMap["q"] ) || (inputMap["Q"] )) {
+                    camera.target = sphere;
+                }
+                if ((inputMap["w"] ) || (inputMap["W"])) {
+                    camera.target = sphere2;
+                }
+                if ((inputMap["e"] ) || (inputMap["E"])) {
+                    camera.target = sphere3;
+                }
+                if ((inputMap["z"] ) || (inputMap["Z"])) {
+                    window.location.reload();
+                }
+            })
+        }
+
+        function createParticleMotor(scene){
+            scene.clearColor = new BABYLON.Color3(0.0, 0.0, 0.0);
+
+            // Emitter object
+            var emitter = new BABYLON.ConeParticleEmitter();
+            //emitter.position = new BABYLON.Vector3(-5, 100, 5);;
+
+            //var fountain = BABYLON.Mesh.CreateBox("fountain", 0.01, scene);
+            var fountain = BABYLON.MeshBuilder.CreateCylinder("fountain", {height: 1, diameter: 2}, scene);
+            fountain.position.x = 39.5;
+            fountain.position.z = -92;
+            var child = new BABYLON.TransformNode();
+            child.parent = fountain;
+            child.position.y = -186;
+
+        
+            var particleSystem = new BABYLON.ParticleSystem("particles", 30 , scene, null, true);
+            particleSystem.particleTexture = new BABYLON.Texture("https://raw.githubusercontent.com/PatrickRyanMS/BabylonJStextures/master/ParticleSystems/Steam/T_SteamSpriteSheet.png", scene, true,
+                false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+
+            particleSystem.startSpriteCellID = 0;
+            particleSystem.endSpriteCellID = 31;
+            particleSystem.spriteCellHeight = 256;
+            particleSystem.spriteCellWidth = 128;
+            particleSystem.spriteCellChangeSpeed = 4;
+
+            particleSystem.minScaleX = 25.0;
+            particleSystem.minScaleY = 50.0;
+            particleSystem.maxScaleX = 25.0;
+            particleSystem.maxScaleY = 50.0;
+
+            particleSystem.addSizeGradient(0, 0.0, 0.0);
+            particleSystem.addSizeGradient(1.0, 1, 5);
+
+            particleSystem.translationPivot = new BABYLON.Vector2(0, -0.5);
+
+            // Where the particles come from
+            var radius = 1;
+            var angle = Math.PI;
+            var coneEmitter = new BABYLON.ConeParticleEmitter(radius, angle);
+            coneEmitter.radiusRange = 0;
+            coneEmitter.heightRange = 0;
+
+            particleSystem.particleEmitterType = coneEmitter;
+            particleSystem.emitter= child;
+
+            // Life time of each particle (random between...
+            particleSystem.minLifeTime = 4.0;
+            particleSystem.maxLifeTime = 4.0;
+
+            particleSystem.billboardMode = BABYLON.AbstractMesh.BILLBOARDMODE_Y;
+
+            // Color gradient over life
+            particleSystem.addColorGradient(0, new BABYLON.Color4(1, 1, 1, 0));
+            particleSystem.addColorGradient(0.5, new BABYLON.Color4(1, 1, 1, 70/255));
+            particleSystem.addColorGradient(1.0, new BABYLON.Color4(1, 1, 1, 0));
+
+            // Emission rate
+            particleSystem.emitRate = 6 ;
+
+            // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
+            particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+
+            // Set the gravity of all particles
+            particleSystem.gravity = new BABYLON.Vector3(0, 0, 0);
+
+            // Speed
+            particleSystem.minEmitPower = 0;
+            particleSystem.maxEmitPower = 0 ;
+            particleSystem.updateSpeed = 1/60;
+
+            // Start the particle system
+            particleSystem.start();
+        }
+
+        function createParticleSphere(scene, sphere){
+
+            var particleSystem = new BABYLON.ParticleSystem("particles", 10000, scene);
+            particleSystem.particleTexture = new BABYLON.Texture("/texturas/flare.png", scene);
+
+            particleSystem.minSize = 0.05;
+            particleSystem.maxSize = 0.1;
+
+            // Where the particles come from
+            var meshEmitter = new BABYLON.MeshParticleEmitter(sphere);
+            particleSystem.particleEmitterType = meshEmitter;
+
+            particleSystem.emitter= sphere;
+
+            // Life time of each particle (random between...
+            particleSystem.minLifeTime = 4.0;
+            particleSystem.maxLifeTime = 4.0;
+
+            // Emission rate
+            particleSystem.emitRate = 500;
+
+            // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
+            particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+
+            // Set the gravity of all particles
+            particleSystem.gravity = new BABYLON.Vector3(0, 0, 0);
+
+            // Speed
+            particleSystem.minEmitPower = 1;
+            particleSystem.maxEmitPower = 4;
+            particleSystem.updateSpeed = 1/60;
+
+            // Start the particle system
+            particleSystem.start();
+        }
+
+        const criarHUD = function () {
+            var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+            var instrucoes = stylesUI(
+                "Jean Augusto Bauch - 180375", BABYLON.GUI
+                .Control
+                .HORIZONTAL_ALIGNMENT_CENTER, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
+
+            advancedTexture.addControl(instrucoes);
+        }
+
+        const stylesUI = function (texto, horizontal, vertical) {
+          var instrucoes = new BABYLON.GUI.TextBlock();
+          instrucoes.text = texto;
+          instrucoes.color = "white";
+          instrucoes.fontSize = 32;
+          instrucoes.textHorizontalAlignment = horizontal;
+          instrucoes.textVerticalAlignment = vertical;
+          return instrucoes;
+        }
+
+        const criarHUDInstrucoes = function () {
+          advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+          var topPanelD = new BABYLON.GUI.StackPanel();
+          topPanelD.width = "1280px";
+          topPanelD.isVertical = true;
+          topPanelD.paddingLeft = "20px";
+          topPanelD.paddingTop = "40px";
+          topPanelD.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+          topPanelD.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+          topPanelD.fontSize = 24;
+          advancedTexture.addControl(topPanelD);
+          
+          var addHeader = function (text, panel, alinhamento) {
+            var header = new BABYLON.GUI.TextBlock();
+            header.text = `Altere a camera para: ${text}`;
+            header.height = "30px";
+            header.color = "white";
+            header.outlineWidth = "4px";
+            header.outlineColor = "black";
+            header.textHorizontalAlignment = alinhamento;
+
+            panel.addControl(header);
+          }
+          var alinhamentoCentro = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+          addHeader("[q]- SphereAzul/ [w]- Sphere/ [e]- SphereRed/ [z]- Reload Level", topPanelD, alinhamentoCentro);
+          return advancedTexture;
+        }
+
+        var engine;
+        var scene;
+        initFunction = async function() {               
+            var asyncEngineCreation = async function() {
+                try {
+                return createDefaultEngine();
+                } catch(e) {
+                console.log("the available createEngine function failed. Creating the default engine instead");
+                return createDefaultEngine();
+                }
+            }
+
+            engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene        
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+
+                    let firstDoor = scene.getMeshById("fristDoor");
+                    let charuto = scene.getMeshById("charuto");
+                    let impulser = scene.getMeshById("impulser");
+                    let helice = scene.getMeshById("helice");
+                    let heliceFinal = scene.getMeshById("heliceFinal");
+                    let mamacoObj = scene.getMeshById("mamacoObj");
+                    if(firstDoor && firstDoorInit && firstDoor.position.z<=firstDoorInit+20) {
+                        firstDoor.position.z += 0.1;
+                    }
+                    if(mamacoObj && mamacoObj.position.z<=mamacoInit+14) {
+                        mamacoObj.position.z += 0.01;
+                    }
+
+                    if(mamacoIsActived && charuto && charuto.position.x<=charutoInit+35.5) {
+                        charuto.position.x += 0.05;
+                    }
+
+                    if(impulserIsActived && impulser && impulser.position.x<=impulserInit+4) {
+                        impulser.position.x +=0.2;
+                        impulser.position.y -=0.01;
+                    }
+
+                    if(helice) {
+                        helice.addRotation(0, 0.01, 0);
+                    }
+                    if(positve && negative) {
+                        camera.upperRadiusLimit = 225;
+                        heliceFinal.addRotation(0, 0.2, 0);
+                        if(!heliceActived){
+                            createParticleMotor(scene);
+                            const bounce = new BABYLON.Sound("bounce", "./sounds/motorLigando.mp3", scene, null, { loop: true, autoplay: true });
+                            heliceActived = true;
+                        }
+                        
+                    }
+                }
+            });
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
